@@ -92,7 +92,9 @@ namespace DarkBotBrowser
             };
             cefSettings.LogSeverity = LogSeverity.Verbose;
             cefSettings.CefCommandLineArgs.Remove("enable-system-flash");
-            cefSettings.CefCommandLineArgs.Add("enable-system-flash", "1");
+            cefSettings.CefCommandLineArgs.Add("enable-system-flash", "0");
+            cefSettings.CefCommandLineArgs.Add("ppapi-flash-path", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources", "pepflashplayer64_32_0_0_207.dll"));
+            cefSettings.CefCommandLineArgs.Add("ppapi-flash-version", "32.0.0.207");
             cefSettings.CefCommandLineArgs.Add("force-device-scale-factor", "1");
             cefSettings.CefCommandLineArgs.Add("autoplay-policy", "no-user-gesture-required");
             cefSettings.CefCommandLineArgs.Add("disable-gpu-vsync", "1");

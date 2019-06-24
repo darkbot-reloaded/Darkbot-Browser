@@ -29,7 +29,6 @@ namespace DarkBotBrowser
         private CookieManager _cookies;
 
         private BrowserWindow _browserWindow;
-        private bool _blockUserInput = false;
         private Process _flashProcess;
 
         private NamedPipeClient<string> _client;
@@ -123,52 +122,45 @@ namespace DarkBotBrowser
             }
             else if (packet.Header == IncomingPacketIds.MOUSE)
             {
+                var x = packet.NextInt;
+                var y = packet.NextInt;
                 if (packet.Next == IncomingPacketIds.CLICK)
                 {
-                    var x = packet.NextInt;
-                    var y = packet.NextInt;
                     DoMouseClick(x, y);
                     Log($"Mouse clicked at {x}/{y}");
                 }
                 else if (packet.Next == IncomingPacketIds.MOVE)
                 {
-                    var x = packet.NextInt;
-                    var y = packet.NextInt;
                     DoMouseMove(x, y);
                     Log($"Mouse moved to {x}/{y}");
                 }
                 else if (packet.Next == IncomingPacketIds.DOWN)
                 {
-                    var x = packet.NextInt;
-                    var y = packet.NextInt;
                     DoMouseDown(x, y);
                     Log($"Mouse down at {x}/{y}");
                 }
                 else if (packet.Next == IncomingPacketIds.UP)
                 {
-                    var x = packet.NextInt;
-                    var y = packet.NextInt;
                     DoMouseUp(x, y);
                     Log($"Mouse up at {x}/{y}");
                 }
             }
             else if (packet.Header == IncomingPacketIds.KEY)
             {
+                var k = packet.NextInt;
                 if (packet.Next == IncomingPacketIds.CLICK)
                 {
-                    var k = packet.NextInt;
                     DoKeyboardClick(k);
                     Log($"Keyboard clicked {k}");
                 }
                 else if (packet.Next == IncomingPacketIds.DOWN)
                 {
-                    var k = packet.NextInt;
                     DoKeyboardDown(k);
                     Log($"Keyboard down {k}");
                 }
                 else if (packet.Next == IncomingPacketIds.UP)
                 {
-                    var k = packet.NextInt;
+                   
                     DoKeyboardUp(k);
                     Log($"Keyboard up {k}");
                 }
@@ -343,11 +335,6 @@ namespace DarkBotBrowser
                 rtbLog.AppendText(nDateTime + text + System.Environment.NewLine);
                 rtbLog.ScrollToCaret();
             }
-        }
-
-        private void button1_Click(object sender, EventArgs e)
-        {
-           
         }
     }
 }

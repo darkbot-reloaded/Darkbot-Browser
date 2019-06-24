@@ -375,9 +375,6 @@
     <Content Include="resources\libGLESv2.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="resources\pepflashplayer32_32_0_0_207.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="resources\pepflashplayer64_32_0_0_207.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
