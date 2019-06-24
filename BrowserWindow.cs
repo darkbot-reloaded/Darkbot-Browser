@@ -1,43 +1,59 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace DarkBrowser
+namespace DarkBotBrowser
 {
     public class BrowserWindow : NativeWindow
     {
-        internal BrowserWindow(Control browser, IntPtr handle, Func<Message, bool> onInput)
+        public bool BlockUserInput { get; set; }
+        public BrowserWindow(Control browser, IntPtr handle)
         {
             AssignHandle(handle);
             browser.HandleDestroyed += BrowserOnHandleDestroyed;
-            _onInput = onInput;
         }
 
         private void BrowserOnHandleDestroyed(object sender, EventArgs e)
         {
             ReleaseHandle();
             ((Control) sender).HandleDestroyed -= BrowserOnHandleDestroyed;
-            _onInput = null;
         }
 
 
         protected override void WndProc(ref Message m)
         {
-            var flag = true;
-            if (_onInput != null)
-            {
-                flag = _onInput(m);
-            }
-            if (flag)
+            var allow = OnInput(m);
+            if (allow)
             {
                 base.WndProc(ref m);
             }
         }
-        
-        private Func<Message, bool> _onInput;
+
+        private bool OnInput(Message message)
+        {
+            if (BlockUserInput)
+            {
+                int msg = message.Msg;
+                if (msg <= 161)
+                {
+                    if (msg != 33 && msg != 161)
+                    {
+                        return true;
+                    }
+                }
+                else if (msg - 512 > 10)
+                {
+                    if (msg != 526)
+                    {
+                        if (msg != 675)
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+            return true;
+        }
     }
 
 }

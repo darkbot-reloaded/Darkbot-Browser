@@ -1,15 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 using CefSharp;
 using CefSharp.WinForms;
 
-namespace DarkBrowser
+namespace DarkBotBrowser
 {
     static class Program
     {
@@ -97,6 +95,8 @@ namespace DarkBrowser
             cefSettings.CefCommandLineArgs.Add("enable-system-flash", "1");
             cefSettings.CefCommandLineArgs.Add("force-device-scale-factor", "1");
             cefSettings.CefCommandLineArgs.Add("autoplay-policy", "no-user-gesture-required");
+            cefSettings.CefCommandLineArgs.Add("disable-gpu-vsync", "1");
+            cefSettings.CefCommandLineArgs.Add("disable-gpu-shader-disk-cache", "1");
             Cef.Initialize(cefSettings, performDependencyCheck: false, browserProcessHandler: null);
 
             Application.EnableVisualStyles();

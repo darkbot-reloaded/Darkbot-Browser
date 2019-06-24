@@ -1,6 +1,6 @@
 ﻿using CefSharp;
 
-namespace DarkBrowser.CefHandler
+namespace DarkBotBrowser.CefHandler
 {
     public class ContextMenuHandler : IContextMenuHandler
     {

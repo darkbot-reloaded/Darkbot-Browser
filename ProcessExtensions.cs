@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Management;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace DarkBrowser
+namespace DarkBotBrowser
 {
     public static class ProcessExtensions
     {

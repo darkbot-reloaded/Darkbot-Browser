@@ -87,6 +87,10 @@
     <Compile Include="BrowserWindow.cs" />
     <Compile Include="CefHandler\ContextMenuHandler.cs" />
     <Compile Include="CefHandler\FindReplaceResponseFilter.cs" />
+    <Compile Include="Communication\In\IncomingPacket.cs" />
+    <Compile Include="Communication\In\IncomingPacketIds.cs" />
+    <Compile Include="Communication\Out\OutgoingPacketIds.cs" />
+    <Compile Include="Communication\Out\PacketComposer.cs" />
     <Compile Include="FrmBrowser.cs">
       <SubType>Form</SubType>
     </Compile>

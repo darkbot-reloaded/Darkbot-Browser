@@ -2,11 +2,16 @@
 using System.IO;
 using CefSharp;
 
-namespace DarkBrowser.CefHandler
+namespace DarkBotBrowser.CefHandler
 {
     public class RequestContextHandler : IRequestContextHandler
     {
-        private readonly CookieManager _cookies = new CookieManager(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources", "cookies"), true, null);
+        public RequestContextHandler(CookieManager cookies)
+        {
+            _cookies = cookies;
+        }
+
+        private readonly CookieManager _cookies;
         public ICookieManager GetCookieManager()
         {
             return _cookies;

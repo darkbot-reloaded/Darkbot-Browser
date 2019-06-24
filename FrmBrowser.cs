@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Management;
 using System.Runtime.InteropServices;
@@ -14,15 +15,18 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using CefSharp;
 using CefSharp.WinForms;
-using DarkBrowser.CefHandler;
+using DarkBotBrowser.CefHandler;
+using DarkBotBrowser.Communication.In;
+using DarkBotBrowser.Communication.Out;
 using NamedPipeWrapper;
 
-namespace DarkBrowser
+namespace DarkBotBrowser
 {
     public partial class FrmBrowser : Form
     {
         private ChromiumWebBrowser _chromiumWebBrowser;
         private IntPtr _chromiumWebBrowserHandle;
+        private CookieManager _cookies;
 
         private BrowserWindow _browserWindow;
         private bool _blockUserInput = false;
@@ -39,6 +43,8 @@ namespace DarkBrowser
         {
             _chromiumWebBrowser?.Dispose();
 
+            _cookies = new CookieManager(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources", "cookies"), true, null);
+
             var browserSettings = new BrowserSettings
             {
                 WindowlessFrameRate = 30,
@@ -46,10 +52,11 @@ namespace DarkBrowser
                 WebGl = CefState.Enabled
             };
 
-            _chromiumWebBrowser = new ChromiumWebBrowser("https://www.darkorbit.com/")
+
+            _chromiumWebBrowser = new ChromiumWebBrowser("https://darkorbit.com")
             {
                 BrowserSettings = browserSettings,
-                RequestContext = new RequestContext(new RequestContextHandler()),
+                RequestContext = new RequestContext(new RequestContextHandler(_cookies)),
                 RequestHandler = new RequestHandler(),
                 MenuHandler = new ContextMenuHandler(),
                 
@@ -61,10 +68,10 @@ namespace DarkBrowser
             _chromiumWebBrowser.Dock = DockStyle.Fill;
             panelBrowser.Controls.Add(_chromiumWebBrowser);
 
-            Task.Run((Action) CreateConnection);
+            Task.Run((Action)CreatePipeConnection);
         }
 
-        private void CreateConnection()
+        private void CreatePipeConnection()
         {
             _client = new NamedPipeClient<string>("DarkBot");
 
@@ -77,53 +84,117 @@ namespace DarkBrowser
 
         private void ClientOnServerMessage(NamedPipeConnection<string, string> connection, string message)
         {
-            Log($"Message from server: {message}");
-            var parts = message.Split('|');
+            HandlePacket(message);
+        }
 
-            if (parts[0] == "init")
+        private void HandlePacket(string message)
+        {
+            var packet = new IncomingPacket(message);
+
+            if (packet.Header == IncomingPacketIds.INIT)
             {
-                _client.PushMessage($"PID|{_flashProcess.Id}");
+                SendMessage(PacketComposer.Compose(OutgoingPacketIds.FLASH_PID, _flashProcess.Id));
                 Log($"Sent flash pid {_flashProcess.Id}");
             }
-            else if (parts[0] == "move")
+            else if (packet.Header == IncomingPacketIds.LOGIN)
             {
-                var x = int.Parse(parts[1]);
-                var y = int.Parse(parts[2]);
-                DoMouseMove(x, y);
-                Log($"Moved mouse to {x}/{y}");
+                var server = packet.Next;
+                var sid = packet.Next;
+                Log($"Received login: {server} {sid}");
+                var cookie = new Cookie
+                {
+                    Name = "dosid",
+                    Value = sid,
+                    Domain = $"{server}.darkorbit.com",
+                    Secure = true,
+                    Creation = DateTime.Now
+                };
+
+                Log($"Setting cookie...");
+                _cookies.DeleteCookies($"https://www.{server}.darkorbit.com/", "dosid", null);
+                _cookies.SetCookie($"https://www.{server}.darkorbit.com", cookie, null);
+                Log($"Redirecting browser...");
+                _chromiumWebBrowser.Load($"https://www.{server}.darkorbit.com/indexInternal.es?action=internalStart");
             }
-            else if (parts[0] == "click")
+            else if (packet.Header == IncomingPacketIds.RELOAD)
             {
-                var x = int.Parse(parts[1]);
-                var y = int.Parse(parts[2]);
-                DoMouseClick(x, y);
-                Log($"Clicked at {x}/{y}");
+                Log("Received reload...");
+                _chromiumWebBrowser.Reload(true);
             }
-            else if(parts[0] == "key")
+            else if (packet.Header == IncomingPacketIds.MOUSE)
             {
-                var k = int.Parse(parts[1]);
-                DoKeyboardClick(k);
-                Log($"Pressed key {k}");
+                if (packet.Next == IncomingPacketIds.CLICK)
+                {
+                    var x = packet.NextInt;
+                    var y = packet.NextInt;
+                    DoMouseClick(x, y);
+                    Log($"Mouse clicked at {x}/{y}");
+                }
+                else if (packet.Next == IncomingPacketIds.MOVE)
+                {
+                    var x = packet.NextInt;
+                    var y = packet.NextInt;
+                    DoMouseMove(x, y);
+                    Log($"Mouse moved to {x}/{y}");
+                }
+                else if (packet.Next == IncomingPacketIds.DOWN)
+                {
+                    var x = packet.NextInt;
+                    var y = packet.NextInt;
+                    DoMouseDown(x, y);
+                    Log($"Mouse down at {x}/{y}");
+                }
+                else if (packet.Next == IncomingPacketIds.UP)
+                {
+                    var x = packet.NextInt;
+                    var y = packet.NextInt;
+                    DoMouseUp(x, y);
+                    Log($"Mouse up at {x}/{y}");
+                }
+            }
+            else if (packet.Header == IncomingPacketIds.KEY)
+            {
+                if (packet.Next == IncomingPacketIds.CLICK)
+                {
+                    var k = packet.NextInt;
+                    DoKeyboardClick(k);
+                    Log($"Keyboard clicked {k}");
+                }
+                else if (packet.Next == IncomingPacketIds.DOWN)
+                {
+                    var k = packet.NextInt;
+                    DoKeyboardDown(k);
+                    Log($"Keyboard down {k}");
+                }
+                else if (packet.Next == IncomingPacketIds.UP)
+                {
+                    var k = packet.NextInt;
+                    DoKeyboardUp(k);
+                    Log($"Keyboard up {k}");
+                }
+            }
+            else if (packet.Header == IncomingPacketIds.BLOCK_INPUT)
+            {
+                _browserWindow.BlockUserInput = packet.NextBool;
+                Log($"Blocked user input: {_browserWindow.BlockUserInput}");
+            }
+            else if (packet.Header == IncomingPacketIds.SHOW)
+            {
+                Show();
+            }
+            else if (packet.Header == IncomingPacketIds.HIDE)
+            {
+                Hide();
+            }
+            else
+            {
+                Log($"Received unknown packet... {packet}");
             }
         }
 
-        private async Task GetAndSendFlashProcessId()
+        private void SendMessage(string message)
         {
-            Log("Trying to get flash process id...");
-            try
-            {
-                Process proc = null;
-                while ((proc = Process.GetCurrentProcess().GetFlashProcess()) == null)
-                {
-                    Log("Waiting 500ms...");
-                    await Task.Delay(500);
-                }
-                Log("Got flash process: " + proc.Id);
-                _flashProcess = proc;
-            }
-            catch
-            {
-            }
+            _client.PushMessage(message);
         }
 
         private void ChromiumWebBrowserOnIsBrowserInitializedChanged(object sender, IsBrowserInitializedChangedEventArgs e)
@@ -132,49 +203,6 @@ namespace DarkBrowser
             {
                 Task.Run(new Action(LoopForHandle));
             }
-        }
-
-        private async void LoopForHandle()
-        {
-            try
-            {
-                IntPtr intPtr;
-                while (!RenderWidgetHostHandleSearcher.Search(_chromiumWebBrowserHandle, out intPtr))
-                {
-                    await Task.Delay(10);
-                }
-                _browserWindow = new BrowserWindow(_chromiumWebBrowser, intPtr, OnInput);
-            }
-            catch
-            {
-            }
-        }
-
-        private bool OnInput(Message message)
-        {
-            if (_blockUserInput)
-            {
-                int msg = message.Msg;
-                if (msg <= 161)
-                {
-                    if (msg != 33 && msg != 161)
-                    {
-                        return true;
-                    }
-                }
-                else if (msg - 512 > 10)
-                {
-                    if (msg != 526)
-                    {
-                        if (msg != 675)
-                        {
-                            return true;
-                        }
-                    }
-                }
-                return false;
-            }
-            return true;
         }
 
         private void ChromiumWebBrowserOnHandleCreated(object sender, EventArgs e)
@@ -196,6 +224,43 @@ namespace DarkBrowser
             {
                 Log("Map detected...");
                 Task.Run(GetAndSendFlashProcessId);
+            }
+        }
+
+        private async Task GetAndSendFlashProcessId()
+        {
+            Log("Trying to get flash process id...");
+            try
+            {
+                Process proc = null;
+                while ((proc = Process.GetCurrentProcess().GetFlashProcess()) == null)
+                {
+                    Log("Waiting 500ms...");
+                    await Task.Delay(500);
+                }
+                Log("Got flash process: " + proc.Id);
+                _flashProcess = proc;
+                SendMessage(PacketComposer.Compose(OutgoingPacketIds.FLASH_PID, _flashProcess.Id));
+                Log($"Sent flash pid {_flashProcess.Id}");
+            }
+            catch
+            {
+            }
+        }
+
+        private async void LoopForHandle()
+        {
+            try
+            {
+                IntPtr intPtr;
+                while (!RenderWidgetHostHandleSearcher.Search(_chromiumWebBrowserHandle, out intPtr))
+                {
+                    await Task.Delay(10);
+                }
+                _browserWindow = new BrowserWindow(_chromiumWebBrowser, intPtr);
+            }
+            catch
+            {
             }
         }
 
@@ -278,6 +343,11 @@ namespace DarkBrowser
                 rtbLog.AppendText(nDateTime + text + System.Environment.NewLine);
                 rtbLog.ScrollToCaret();
             }
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+           
         }
     }
 }

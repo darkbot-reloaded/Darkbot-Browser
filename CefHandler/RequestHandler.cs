@@ -2,7 +2,7 @@
 using CefSharp;
 using CefSharp.Handler;
 
-namespace DarkBrowser.CefHandler
+namespace DarkBotBrowser.CefHandler
 {
     public class RequestHandler : DefaultRequestHandler
     {
