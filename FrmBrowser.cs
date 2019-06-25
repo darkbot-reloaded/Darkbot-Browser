@@ -42,7 +42,7 @@ namespace DarkBotBrowser
         {
             _chromiumWebBrowser?.Dispose();
 
-            _cookies = new CookieManager(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources", "cookies"), true, null);
+            _cookies = new CookieManager(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "Cef", "cookies"), true, null);
 
             var browserSettings = new BrowserSettings
             {

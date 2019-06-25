@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -11,19 +12,24 @@ namespace DarkBotBrowser
 {
     static class Program
     {
+        private static readonly string PATH_RESOURCES = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources");
+        private static readonly string PATH_CEF = Path.Combine(PATH_RESOURCES, "Cef");
+        private static readonly string PATH_LIB = Path.Combine(PATH_RESOURCES, "Lib");
+
         [STAThread]
         static void Main()
         {
-            var libraryLoader = new CefLibraryHandle(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources", "libcef.dll"));
-            libraryLoader.Dispose();
-
-            HookAssemblyResolve("\\resources");
+            HookAssemblyResolve(PATH_CEF, PATH_LIB);
 
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             Application.ThreadException += ApplicationOnThreadException;
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
 
             AppDomain.CurrentDomain.ProcessExit += CurrentDomainOnProcessExit;
+
+            var libraryLoader = new CefLibraryHandle(Path.Combine(PATH_CEF, "libcef.dll"));
+            libraryLoader.Dispose();
+
             LaunchBrowser();
         }
 
@@ -69,31 +75,27 @@ namespace DarkBotBrowser
         {
             throw new NotImplementedException();
         }
-
+        
         static void LaunchBrowser()
         {
             Cef.EnableHighDPISupport();
-            
-            var cefSettings = new CefSettings()
+
+            var cefSettings = new CefSettings
             {
-                CachePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources\\cache"),
-                LogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources\\debug.log"),
-                BrowserSubprocessPath =
-                    Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources\\CefSharp.BrowserSubprocess.exe"),
-                LocalesDirPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources\\locales\\"),
-                ResourcesDirPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources"),
+                CachePath = Path.Combine(PATH_CEF, "cache"),
+                LogFile = Path.Combine(PATH_CEF, "debug.log"),
+                BrowserSubprocessPath = Path.Combine(PATH_CEF, "CefSharp.BrowserSubprocess.exe"),
+                LocalesDirPath = Path.Combine(PATH_CEF, "locales"),
+                ResourcesDirPath = Path.Combine(PATH_CEF),
                 MultiThreadedMessageLoop = true,
                 UserAgent =
                     "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36",
-                CefCommandLineArgs =
-                {
-                },
                 CommandLineArgsDisabled = false,
+                LogSeverity = LogSeverity.Verbose,
             };
-            cefSettings.LogSeverity = LogSeverity.Verbose;
             cefSettings.CefCommandLineArgs.Remove("enable-system-flash");
             cefSettings.CefCommandLineArgs.Add("enable-system-flash", "0");
-            cefSettings.CefCommandLineArgs.Add("ppapi-flash-path", Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "resources", "pepflashplayer64_32_0_0_207.dll"));
+            cefSettings.CefCommandLineArgs.Add("ppapi-flash-path", Path.Combine(PATH_LIB, "pepflashplayer64_32_0_0_207.dll"));
             cefSettings.CefCommandLineArgs.Add("ppapi-flash-version", "32.0.0.207");
             cefSettings.CefCommandLineArgs.Add("force-device-scale-factor", "1");
             cefSettings.CefCommandLineArgs.Add("autoplay-policy", "no-user-gesture-required");
