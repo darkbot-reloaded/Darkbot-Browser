@@ -12,7 +12,7 @@ namespace DarkBotBrowser
 {
     static class Program
     {
-        private static readonly string PATH_RESOURCES = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources");
+        public static readonly string PATH_RESOURCES = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources");
         private static readonly string PATH_CEF = Path.Combine(PATH_RESOURCES, "Cef");
         private static readonly string PATH_LIB = Path.Combine(PATH_RESOURCES, "Lib");
 
@@ -28,6 +28,7 @@ namespace DarkBotBrowser
             AppDomain.CurrentDomain.ProcessExit += CurrentDomainOnProcessExit;
 
             var libraryLoader = new CefLibraryHandle(Path.Combine(PATH_CEF, "libcef.dll"));
+            Logger.GetLogger().Info($"Loaded libcef.dll -> {!libraryLoader.IsInvalid}");
             libraryLoader.Dispose();
 
             LaunchBrowser();
@@ -59,7 +60,11 @@ namespace DarkBotBrowser
                     });
 
                     if (assembly != null)
+                    {
+                        Logger.GetLogger().Info($"Loading assembly {args.Name}...");
                         return Assembly.LoadFrom(assembly);
+                    }
+                  
                 }
 
                 throw new ApplicationException("Assembly " + args.Name + " not found");
@@ -68,12 +73,12 @@ namespace DarkBotBrowser
 
         private static void ApplicationOnThreadException(object sender, ThreadExceptionEventArgs e)
         {
-            throw new NotImplementedException();
+            Logger.GetLogger().Error($"[ApplicationOnThreadException] ", e.Exception);
         }
 
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
-            throw new NotImplementedException();
+            Logger.GetLogger().Error($"[ApplicationOnThreadException] ", (Exception)e.ExceptionObject);
         }
         
         static void LaunchBrowser()
@@ -102,7 +107,7 @@ namespace DarkBotBrowser
             cefSettings.CefCommandLineArgs.Add("disable-gpu-vsync", "1");
             cefSettings.CefCommandLineArgs.Add("disable-gpu-shader-disk-cache", "1");
             Cef.Initialize(cefSettings, performDependencyCheck: false, browserProcessHandler: null);
-
+            Logger.GetLogger().Info("Initialized Cef... Launching browser...");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new FrmBrowser());

@@ -8,8 +8,6 @@ namespace DarkBotBrowser.Communication.In
 {
     public class IncomingPacketIds
     {
-        public const string INIT = "init";
-
         public const string MOUSE = "mouse";
 
         public const string KEY = "key";

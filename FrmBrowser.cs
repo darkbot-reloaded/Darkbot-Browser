@@ -17,7 +17,6 @@ using CefSharp;
 using CefSharp.WinForms;
 using DarkBotBrowser.CefHandler;
 using DarkBotBrowser.Communication.In;
-using DarkBotBrowser.Communication.Out;
 using NamedPipeWrapper;
 
 namespace DarkBotBrowser
@@ -29,9 +28,8 @@ namespace DarkBotBrowser
         private CookieManager _cookies;
 
         private BrowserWindow _browserWindow;
-        private Process _flashProcess;
 
-        private NamedPipeClient<string> _client;
+        private NamedPipeServer<string> _server;
 
         public FrmBrowser()
         {
@@ -65,23 +63,34 @@ namespace DarkBotBrowser
             _chromiumWebBrowser.IsBrowserInitializedChanged += ChromiumWebBrowserOnIsBrowserInitializedChanged;
             _chromiumWebBrowser.HandleCreated += ChromiumWebBrowserOnHandleCreated;
             _chromiumWebBrowser.Dock = DockStyle.Fill;
-            panelBrowser.Controls.Add(_chromiumWebBrowser);
+            Controls.Add(_chromiumWebBrowser);
 
             Task.Run((Action)CreatePipeConnection);
         }
 
         private void CreatePipeConnection()
         {
-            _client = new NamedPipeClient<string>("DarkBot");
+            _server = new NamedPipeServer<string>(Process.GetCurrentProcess().Id.ToString());
 
-            _client.ServerMessage += ClientOnServerMessage;
-
-            Log("Starting client...");
-            _client.Start();
-            Log("Client started!");
+            _server.ClientMessage += ServerOnClientMessage;
+            _server.ClientConnected += ServerOnClientConnected;
+            _server.ClientDisconnected += ServerOnClientDisconnected;
+            Logger.GetLogger().Info("Starting server...");
+            _server.Start();
+            Logger.GetLogger().Info("Server started!");
         }
 
-        private void ClientOnServerMessage(NamedPipeConnection<string, string> connection, string message)
+        private void ServerOnClientDisconnected(NamedPipeConnection<string, string> connection)
+        {
+            Logger.GetLogger().Info($"Client disconnected: [{connection.Id}] {connection.Name}");
+        }
+
+        private void ServerOnClientConnected(NamedPipeConnection<string, string> connection)
+        {
+            Logger.GetLogger().Info($"Client connected: [{connection.Id}] {connection.Name}");
+        }
+
+        private void ServerOnClientMessage(NamedPipeConnection<string, string> connection, string message)
         {
             HandlePacket(message);
         }
@@ -90,16 +99,11 @@ namespace DarkBotBrowser
         {
             var packet = new IncomingPacket(message);
 
-            if (packet.Header == IncomingPacketIds.INIT)
-            {
-                SendMessage(PacketComposer.Compose(OutgoingPacketIds.FLASH_PID, _flashProcess.Id));
-                Log($"Sent flash pid {_flashProcess.Id}");
-            }
-            else if (packet.Header == IncomingPacketIds.LOGIN)
+            if (packet.Header == IncomingPacketIds.LOGIN)
             {
                 var server = packet.Next;
                 var sid = packet.Next;
-                Log($"Received login: {server} {sid}");
+                Logger.GetLogger().Info($"Received login: {server} {sid}");
                 var cookie = new Cookie
                 {
                     Name = "dosid",
@@ -109,15 +113,15 @@ namespace DarkBotBrowser
                     Creation = DateTime.Now
                 };
 
-                Log($"Setting cookie...");
+                Logger.GetLogger().Info($"Setting cookie...");
                 _cookies.DeleteCookies($"https://www.{server}.darkorbit.com/", "dosid", null);
                 _cookies.SetCookie($"https://www.{server}.darkorbit.com", cookie, null);
-                Log($"Redirecting browser...");
+                Logger.GetLogger().Info($"Redirecting browser...");
                 _chromiumWebBrowser.Load($"https://www.{server}.darkorbit.com/indexInternal.es?action=internalStart");
             }
             else if (packet.Header == IncomingPacketIds.RELOAD)
             {
-                Log("Received reload...");
+                Logger.GetLogger().Info("Received reload...");
                 _chromiumWebBrowser.Reload(true);
             }
             else if (packet.Header == IncomingPacketIds.MOUSE)
@@ -127,22 +131,22 @@ namespace DarkBotBrowser
                 if (packet.Next == IncomingPacketIds.CLICK)
                 {
                     DoMouseClick(x, y);
-                    Log($"Mouse clicked at {x}/{y}");
+                    Logger.GetLogger().Info($"Mouse clicked at {x}/{y}");
                 }
                 else if (packet.Next == IncomingPacketIds.MOVE)
                 {
                     DoMouseMove(x, y);
-                    Log($"Mouse moved to {x}/{y}");
+                    Logger.GetLogger().Info($"Mouse moved to {x}/{y}");
                 }
                 else if (packet.Next == IncomingPacketIds.DOWN)
                 {
                     DoMouseDown(x, y);
-                    Log($"Mouse down at {x}/{y}");
+                    Logger.GetLogger().Info($"Mouse down at {x}/{y}");
                 }
                 else if (packet.Next == IncomingPacketIds.UP)
                 {
                     DoMouseUp(x, y);
-                    Log($"Mouse up at {x}/{y}");
+                    Logger.GetLogger().Info($"Mouse up at {x}/{y}");
                 }
             }
             else if (packet.Header == IncomingPacketIds.KEY)
@@ -151,24 +155,24 @@ namespace DarkBotBrowser
                 if (packet.Next == IncomingPacketIds.CLICK)
                 {
                     DoKeyboardClick(k);
-                    Log($"Keyboard clicked {k}");
+                    Logger.GetLogger().Info($"Keyboard clicked {k}");
                 }
                 else if (packet.Next == IncomingPacketIds.DOWN)
                 {
                     DoKeyboardDown(k);
-                    Log($"Keyboard down {k}");
+                    Logger.GetLogger().Info($"Keyboard down {k}");
                 }
                 else if (packet.Next == IncomingPacketIds.UP)
                 {
                    
                     DoKeyboardUp(k);
-                    Log($"Keyboard up {k}");
+                    Logger.GetLogger().Info($"Keyboard up {k}");
                 }
             }
             else if (packet.Header == IncomingPacketIds.BLOCK_INPUT)
             {
                 _browserWindow.BlockUserInput = packet.NextBool;
-                Log($"Blocked user input: {_browserWindow.BlockUserInput}");
+                Logger.GetLogger().Info($"Blocked user input: {_browserWindow.BlockUserInput}");
             }
             else if (packet.Header == IncomingPacketIds.SHOW)
             {
@@ -180,13 +184,13 @@ namespace DarkBotBrowser
             }
             else
             {
-                Log($"Received unknown packet... {packet}");
+                Logger.GetLogger().Info($"Received unknown packet... {packet}");
             }
         }
 
         private void SendMessage(string message)
         {
-            _client.PushMessage(message);
+            _server.PushMessage(message);
         }
 
         private void ChromiumWebBrowserOnIsBrowserInitializedChanged(object sender, IsBrowserInitializedChangedEventArgs e)
@@ -214,29 +218,8 @@ namespace DarkBotBrowser
             }
             else if (e.Address.Contains("/indexInternal.es?action=internalMapRevolution"))
             {
-                Log("Map detected...");
-                Task.Run(GetAndSendFlashProcessId);
-            }
-        }
-
-        private async Task GetAndSendFlashProcessId()
-        {
-            Log("Trying to get flash process id...");
-            try
-            {
-                Process proc = null;
-                while ((proc = Process.GetCurrentProcess().GetFlashProcess()) == null)
-                {
-                    Log("Waiting 500ms...");
-                    await Task.Delay(500);
-                }
-                Log("Got flash process: " + proc.Id);
-                _flashProcess = proc;
-                SendMessage(PacketComposer.Compose(OutgoingPacketIds.FLASH_PID, _flashProcess.Id));
-                Log($"Sent flash pid {_flashProcess.Id}");
-            }
-            catch
-            {
+                Logger.GetLogger().Info("Map detected...Setting new title to find flash pid...");
+                Invoke(new Action(() => Text = "DarkBot Browser - Client Ready"));
             }
         }
 
@@ -307,34 +290,6 @@ namespace DarkBotBrowser
         {
             DoKeyboardDown(chr);
             DoKeyboardUp(chr);
-        }
-
-        public void Log(string text, Color color = new Color())
-        {
-            if (rtbLog.InvokeRequired)
-            {
-                rtbLog.BeginInvoke(new Action(delegate {
-                    Log(text, color);
-                }));
-                return;
-            }
-
-            var nDateTime = DateTime.Now.ToString("hh:mm:ss tt") + " - ";
-            
-            rtbLog.SelectionStart = rtbLog.Text.Length;
-            rtbLog.SelectionColor = color;
-            
-            if (rtbLog.Lines.Length == 0)
-            {
-                rtbLog.AppendText(nDateTime + text);
-                rtbLog.ScrollToCaret();
-                rtbLog.AppendText(System.Environment.NewLine);
-            }
-            else
-            {
-                rtbLog.AppendText(nDateTime + text + System.Environment.NewLine);
-                rtbLog.ScrollToCaret();
-            }
         }
     }
 }
