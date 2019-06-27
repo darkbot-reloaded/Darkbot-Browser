@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -10,14 +9,14 @@ using CefSharp.WinForms;
 
 namespace Browser
 {
-    static class Program
+    internal static class Program
     {
         public static readonly string PATH_RESOURCES = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources");
         private static readonly string PATH_CEF = Path.Combine(PATH_RESOURCES, "Cef");
         private static readonly string PATH_LIB = Path.Combine(PATH_RESOURCES, "Lib");
 
         [STAThread]
-        static void Main()
+        private static void Main()
         {
             HookAssemblyResolve(PATH_CEF, PATH_LIB);
 
@@ -43,7 +42,8 @@ namespace Browser
         {
             AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
             {
-                var loadedAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.FullName == args.Name);
+                var loadedAssembly =
+                    AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.FullName == args.Name);
                 if (loadedAssembly != null)
                     return loadedAssembly;
 
@@ -52,19 +52,29 @@ namespace Browser
 
                 foreach (var dir in folders)
                 {
-                    var assembly = new[] { "*.dll", "*.exe" }.SelectMany(g => Directory.EnumerateFiles(dir, g)).FirstOrDefault(f =>
-                    {
-                        try { return n.Name.Equals(AssemblyName.GetAssemblyName(f).Name, StringComparison.OrdinalIgnoreCase); }
-                        catch (BadImageFormatException) { return false; }
-                        catch (Exception ex) { throw new ApplicationException("Error loading assembly " + f, ex); }
-                    });
+                    var assembly = new[] {"*.dll", "*.exe"}.SelectMany(g => Directory.EnumerateFiles(dir, g))
+                        .FirstOrDefault(f =>
+                        {
+                            try
+                            {
+                                return n.Name.Equals(AssemblyName.GetAssemblyName(f).Name,
+                                    StringComparison.OrdinalIgnoreCase);
+                            }
+                            catch (BadImageFormatException)
+                            {
+                                return false;
+                            }
+                            catch (Exception ex)
+                            {
+                                throw new ApplicationException("Error loading assembly " + f, ex);
+                            }
+                        });
 
                     if (assembly != null)
                     {
                         Logger.GetLogger().Info($"Loading assembly {args.Name}...");
                         return Assembly.LoadFrom(assembly);
                     }
-                  
                 }
 
                 throw new ApplicationException("Assembly " + args.Name + " not found");
@@ -73,15 +83,15 @@ namespace Browser
 
         private static void ApplicationOnThreadException(object sender, ThreadExceptionEventArgs e)
         {
-            Logger.GetLogger().Error($"[ApplicationOnThreadException] ", e.Exception);
+            Logger.GetLogger().Error("[ApplicationOnThreadException] ", e.Exception);
         }
 
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
-            Logger.GetLogger().Error($"[ApplicationOnThreadException] ", (Exception)e.ExceptionObject);
+            Logger.GetLogger().Error("[ApplicationOnThreadException] ", (Exception) e.ExceptionObject);
         }
-        
-        static void LaunchBrowser()
+
+        private static void LaunchBrowser()
         {
             Cef.EnableHighDPISupport();
 
@@ -95,7 +105,7 @@ namespace Browser
                 MultiThreadedMessageLoop = true,
                 UserAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36",
                 CommandLineArgsDisabled = false,
-                LogSeverity = LogSeverity.Verbose,
+                LogSeverity = LogSeverity.Verbose
             };
             cefSettings.CefCommandLineArgs.Remove("enable-system-flash");
             cefSettings.CefCommandLineArgs.Add("enable-system-flash", "0");
@@ -105,7 +115,7 @@ namespace Browser
             cefSettings.CefCommandLineArgs.Add("autoplay-policy", "no-user-gesture-required");
             cefSettings.CefCommandLineArgs.Add("disable-gpu-vsync", "1");
             cefSettings.CefCommandLineArgs.Add("disable-gpu-shader-disk-cache", "1");
-            Cef.Initialize(cefSettings, performDependencyCheck: false, browserProcessHandler: null);
+            Cef.Initialize(cefSettings, false, browserProcessHandler: null);
             Logger.GetLogger().Info("Initialized Cef... Launching browser...");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);

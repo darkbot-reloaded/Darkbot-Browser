@@ -6,30 +6,29 @@ namespace Browser.CefHandler
 {
     public class RequestHandler : DefaultRequestHandler
     {
-        public override CefReturnValue OnBeforeResourceLoad(IWebBrowser browserControl, IBrowser browser, IFrame frame, IRequest request, IRequestCallback callback)
+        public override CefReturnValue OnBeforeResourceLoad(IWebBrowser browserControl, IBrowser browser, IFrame frame,
+            IRequest request, IRequestCallback callback)
         {
-            CefReturnValue result = CefReturnValue.Continue;
-            if (request != null && request.Url.ToLower().Contains("js_click"))
-            {
-                result = CefReturnValue.Cancel;
-            }
+            var result = CefReturnValue.Continue;
+            if (request != null && request.Url.ToLower().Contains("js_click")) result = CefReturnValue.Cancel;
             callback.Dispose();
             return result;
         }
 
-        
-        public override IResponseFilter GetResourceResponseFilter(IWebBrowser browserControl, IBrowser browser, IFrame frame, IRequest request, IResponse response)
+
+        public override IResponseFilter GetResourceResponseFilter(IWebBrowser browserControl, IBrowser browser,
+            IFrame frame, IRequest request, IResponse response)
         {
             if (request.Url.Contains("indexInternal.es?action=internalMapRevolution"))
             {
-
                 var dictionary = new Dictionary<string, string>
                 {
-                    {"\"onFail\": onFailFlashembed", "\"onFail\": onFailFlashembed, \"quality\": \"low\""}
+                    {"\"onFail\": onFailFlashembed", "\"onFail\": onFailFlashembed, \"quality\": \"low\""} //Set Quality to low
                 };
 
                 return new FindReplaceResponseFilter(dictionary);
             }
+
             return null;
         }
     }

@@ -11,23 +11,25 @@ namespace Browser
 {
     public class Logger
     {
+        private static string PATH_LOG = Path.Combine(Program.PATH_RESOURCES, "debug.log");
         private static ILog _log;
 
         public static ILog GetLogger()
         {
             if (_log == null)
             {
-                ConfigureFileAppender(Path.Combine(Program.PATH_RESOURCES, "debug.log"));
+                ConfigureFileAppender(PATH_LOG);
                 _log = LogManager.GetLogger("FileLogger");
             }
+
             return _log;
         }
 
-        public static void ConfigureFileAppender(string logFile)
+        private static void ConfigureFileAppender(string logFile)
         {
             var fileAppender = GetFileAppender(logFile);
             BasicConfigurator.Configure(fileAppender);
-            ((Hierarchy)LogManager.GetRepository()).Root.Level = Level.All;
+            ((Hierarchy) LogManager.GetRepository()).Root.Level = Level.All;
         }
 
         private static IAppender GetFileAppender(string logFile)
@@ -42,7 +44,7 @@ namespace Browser
                 AppendToFile = true,
                 Encoding = Encoding.UTF8,
                 Threshold = Level.All,
-                Layout = layout,
+                Layout = layout
             };
 
             appender.ActivateOptions();
