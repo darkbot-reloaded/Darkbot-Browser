@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace DarkBotBrowser
+namespace Browser
 {
     public class RenderWidgetHostHandleSearcher
     {

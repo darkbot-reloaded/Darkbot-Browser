@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 
-namespace DarkBotBrowser
+namespace Browser
 {
     public class BrowserWindow : NativeWindow
     {

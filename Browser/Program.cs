@@ -8,7 +8,7 @@ using System.Windows.Forms;
 using CefSharp;
 using CefSharp.WinForms;
 
-namespace DarkBotBrowser
+namespace Browser
 {
     static class Program
     {
@@ -93,8 +93,7 @@ namespace DarkBotBrowser
                 LocalesDirPath = Path.Combine(PATH_CEF, "locales"),
                 ResourcesDirPath = Path.Combine(PATH_CEF),
                 MultiThreadedMessageLoop = true,
-                UserAgent =
-                    "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36",
+                UserAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36",
                 CommandLineArgsDisabled = false,
                 LogSeverity = LogSeverity.Verbose,
             };
@@ -110,7 +109,7 @@ namespace DarkBotBrowser
             Logger.GetLogger().Info("Initialized Cef... Launching browser...");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new FrmBrowser());
+            Application.Run(new Main());
         }
     }
 }

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using CefSharp;
 
-namespace DarkBotBrowser.CefHandler
+namespace Browser.CefHandler
 {
     //https://stackoverflow.com/questions/38096349/modifying-remote-javascripts-as-they-load-with-cefsharp
     public class FindReplaceResponseFilter : IResponseFilter
