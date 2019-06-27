@@ -1,0 +1,3 @@
+# Darkbot-Browser
+
+## !!! BEFORE LAUNCHING, EXTRACT RESOURCES.ZIP FILE !!! ##
