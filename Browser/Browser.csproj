@@ -377,6 +377,7 @@
     <Content Include="Resources\Cef\swiftshader\libGLESv2.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="Resources\icon.ico" />
     <Content Include="Resources\Lib\log4net.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
