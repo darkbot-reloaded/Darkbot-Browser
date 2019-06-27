@@ -93,7 +93,7 @@ namespace Browser
                     var x = packet.NextInt;
                     var y = packet.NextInt;
 
-                    switch (packet.NextMouse)
+                    switch (packet.NextMouseEvent)
                     {
                         case PacketHandler.MouseEvent.Move:
                             _chromiumWebBrowser.GetBrowserHost().SendMouseMoveEvent(x, y, false, CefEventFlags.None);
@@ -115,15 +115,15 @@ namespace Browser
                 case PacketHandler.PacketHeader.Keyboard:
                     var key = packet.NextInt;
 
-                    switch (packet.NextKey)
+                    switch (packet.NextKeyboardEvent)
                     {
-                        case PacketHandler.KeyBoardEvent.Down:
+                        case PacketHandler.KeyboardEvent.Down:
                             DoKeyDown(key);
                             break;
-                        case PacketHandler.KeyBoardEvent.Up:
+                        case PacketHandler.KeyboardEvent.Up:
                             DoKeyUp(key);
                             break;
-                        case PacketHandler.KeyBoardEvent.Click:
+                        case PacketHandler.KeyboardEvent.Click:
                             DoKeyDown(key);
                             DoKeyUp(key);
                             break;

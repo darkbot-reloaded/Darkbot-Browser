@@ -4,7 +4,7 @@ namespace Browser
 {
     public class PacketHandler
     {
-        public enum KeyBoardEvent
+        public enum KeyboardEvent
         {
             Down = 1,
             Up = 2,
@@ -41,8 +41,8 @@ namespace Browser
 
         public PacketHeader Header => (PacketHeader) int.Parse(_data[0]);
 
-        public MouseEvent NextMouse => (MouseEvent) int.Parse(_data[_counter++]);
-        public KeyBoardEvent NextKey => (KeyBoardEvent) int.Parse(_data[_counter++]);
+        public MouseEvent NextMouseEvent => (MouseEvent) int.Parse(_data[_counter++]);
+        public KeyboardEvent NextKeyboardEvent => (KeyboardEvent) int.Parse(_data[_counter++]);
 
         public string Next => _data[_counter++];
         public int NextInt => int.Parse(_data[_counter++]);

@@ -114,6 +114,7 @@ namespace Browser
             cefSettings.CefCommandLineArgs.Add("force-device-scale-factor", "1");
             cefSettings.CefCommandLineArgs.Add("autoplay-policy", "no-user-gesture-required");
             cefSettings.CefCommandLineArgs.Add("disable-gpu-vsync", "1");
+            cefSettings.CefCommandLineArgs.Add("disable-gpu", "1");
             cefSettings.CefCommandLineArgs.Add("disable-gpu-shader-disk-cache", "1");
             Cef.Initialize(cefSettings, false, browserProcessHandler: null);
             Logger.GetLogger().Info("Initialized Cef... Launching browser...");
