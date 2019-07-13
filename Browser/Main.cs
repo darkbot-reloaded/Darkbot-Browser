@@ -52,10 +52,20 @@ namespace Browser
                 richTextBox1.ScrollToCaret();
             }
         }
+
+        private void SetDoubleBuffering(Control control, bool value)
+        {
+            var controlProperty = typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (controlProperty != null)
+            {
+                controlProperty.SetValue(control, value, null);
+            }
+        }
         public Main()
         {
             InitializeComponent();
             KeyPreview = true;
+            SetDoubleBuffering(pbBrowser, true);
         }
 
         private void main_Load(object sender, EventArgs e)
@@ -67,7 +77,7 @@ namespace Browser
 
             var browserSettings = new BrowserSettings
             {
-                WindowlessFrameRate = 60,
+                WindowlessFrameRate = (int)numericUpDown1.Value,
                 Plugins = CefState.Enabled,
                 WebGl = CefState.Enabled,
             };
@@ -81,7 +91,27 @@ namespace Browser
             _renderHandler = new RenderHandler(_chromiumWebBrowser);
             _renderHandler.BrowserPaint += (bitmap) =>
             {
-                pbBrowser.Image = bitmap;
+                if (!pbBrowser.Disposing && !pbBrowser.IsDisposed && !Disposing && !IsDisposed)
+                {
+                    lock (pbBrowser)
+                    {
+                        try
+                        {
+                            Invoke(new Action(() =>
+                            {
+                                pbBrowser.Image?.Dispose();
+                                pbBrowser.Image = null;
+                            }));
+                        }
+                        catch (Exception)
+                        {
+                        }
+                     
+
+                        pbBrowser.Image = bitmap;
+                    }
+                   
+                }
             };
 
             _chromiumWebBrowser.RenderHandler = _renderHandler;
@@ -380,6 +410,11 @@ namespace Browser
                 }
             }
             e.Handled = true;
+        }
+
+        private void NumericUpDown1_ValueChanged(object sender, EventArgs e)
+        {
+            _chromiumWebBrowser.GetBrowserHost().WindowlessFrameRate = (int) numericUpDown1.Value;
         }
     }
 }

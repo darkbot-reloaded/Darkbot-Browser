@@ -17,8 +17,6 @@ namespace Browser.CefHandler
     {
         public delegate void BrowserPaintHandler(Bitmap bitmap);
         public event BrowserPaintHandler BrowserPaint;
-
-        public object BitMapLocker { get; set; } = new object();
         public bool Render { get; set; }
 
         private ChromiumWebBrowser _browser;
