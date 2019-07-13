@@ -83,25 +83,24 @@ namespace Browser.CefHandler
                 _lastHeight = height;
             }
         }
+
         public virtual void OnPaint(PaintElementType type, Rect dirtyRect, IntPtr buffer, int width, int height)
         {
             if (Render && _browser.IsBrowserInitialized)
             {
-                lock (BitMapLocker)
-                {
-                    ResizeBuffer(width, height);
-                    Marshal.Copy(buffer, _buffer, 0, _buffer.Length);
+                ResizeBuffer(width, height);
+                Marshal.Copy(buffer, _buffer, 0, _buffer.Length);
 
-                    var bitmap = new Bitmap(width, height, PixelFormat.Format32bppPArgb);
+                var bitmap = new Bitmap(width, height, PixelFormat.Format32bppPArgb);
 
-                    var bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppPArgb);
+                var bitmapData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly,
+                    PixelFormat.Format32bppPArgb);
 
-                    Marshal.Copy(_buffer, 0, bitmapData.Scan0, _buffer.Length);
+                Marshal.Copy(_buffer, 0, bitmapData.Scan0, _buffer.Length);
 
-                    bitmap.UnlockBits(bitmapData);
+                bitmap.UnlockBits(bitmapData);
 
-                    OnBrowserPaint(bitmap);
-                }
+                OnBrowserPaint(bitmap);
             }
         }
 

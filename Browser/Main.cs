@@ -67,7 +67,7 @@ namespace Browser
 
             var browserSettings = new BrowserSettings
             {
-                WindowlessFrameRate = 6,
+                WindowlessFrameRate = 60,
                 Plugins = CefState.Enabled,
                 WebGl = CefState.Enabled,
             };
@@ -81,20 +81,7 @@ namespace Browser
             _renderHandler = new RenderHandler(_chromiumWebBrowser);
             _renderHandler.BrowserPaint += (bitmap) =>
             {
-                lock (_renderHandler.BitMapLocker)
-                {
-                    try
-                    {
-                        pbBrowser.Image?.Dispose();
-
-                        pbBrowser.Image = bitmap;
-                    }
-                    catch (Exception exception)
-                    {
-                        Log("exc in draw " + exception.ToString());
-                    }
-
-                }
+                pbBrowser.Image = bitmap;
             };
 
             _chromiumWebBrowser.RenderHandler = _renderHandler;
@@ -170,7 +157,6 @@ namespace Browser
                     DoMouseUp(x, y);
                 }
 
-                ;
             }
             else if (packet.Header == PacketHandler.PacketHeader.Keyboard)
             {
@@ -205,21 +191,18 @@ namespace Browser
             {
                 Log($"show");
                 Invoke(new Action(Show));
+                _renderHandler.Render = true;
             }
             else if (packet.Header == PacketHandler.PacketHeader.Hide)
             {
                 Log($"hide");
                 Invoke(new Action(Hide));
+                _renderHandler.Render = false;
             }
             else if (packet.Header == PacketHandler.PacketHeader.BlockInput)
             {
                 Log($"block input");
                 _blockUserInput = packet.NextBool;
-            }
-            else if (packet.Header == PacketHandler.PacketHeader.Render)
-            {
-                Log($"render");
-                _renderHandler.Render = !_renderHandler.Render;
             }
         }
 

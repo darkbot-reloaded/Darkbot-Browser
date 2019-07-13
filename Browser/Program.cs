@@ -20,9 +20,9 @@ namespace Browser
         {
             HookAssemblyResolve(PATH_CEF, PATH_LIB);
 
-            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-            Application.ThreadException += ApplicationOnThreadException;
-            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            //AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+            //Application.ThreadException += ApplicationOnThreadException;
+            //Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
 
             AppDomain.CurrentDomain.ProcessExit += CurrentDomainOnProcessExit;
 

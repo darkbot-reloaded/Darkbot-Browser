@@ -25,9 +25,12 @@ namespace Browser
             // 
             // pbBrowser
             // 
-            this.pbBrowser.Location = new System.Drawing.Point(0, 0);
+            this.pbBrowser.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.pbBrowser.Location = new System.Drawing.Point(460, 12);
             this.pbBrowser.Name = "pbBrowser";
-            this.pbBrowser.Size = new System.Drawing.Size(1260, 891);
+            this.pbBrowser.Size = new System.Drawing.Size(1317, 867);
             this.pbBrowser.TabIndex = 0;
             this.pbBrowser.TabStop = false;
             this.pbBrowser.MouseDown += new System.Windows.Forms.MouseEventHandler(this.pbBrowser_MouseDown);
@@ -36,9 +39,10 @@ namespace Browser
             // 
             // richTextBox1
             // 
-            this.richTextBox1.Location = new System.Drawing.Point(1266, 0);
+            this.richTextBox1.Location = new System.Drawing.Point(12, 12);
             this.richTextBox1.Name = "richTextBox1";
-            this.richTextBox1.Size = new System.Drawing.Size(520, 879);
+            this.richTextBox1.ReadOnly = true;
+            this.richTextBox1.Size = new System.Drawing.Size(442, 867);
             this.richTextBox1.TabIndex = 2;
             this.richTextBox1.Text = "";
             // 
