@@ -27,6 +27,7 @@ namespace Browser.CefHandler
 
         public void OnRequestContextInitialized(IRequestContext requestContext)
         {
+            
         }
     }
 }

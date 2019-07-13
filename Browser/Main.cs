@@ -1,30 +1,64 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Browser.CefHandler;
 using CefSharp;
-using CefSharp.WinForms;
+using CefSharp.OffScreen;
 using NamedPipeWrapper;
 
 namespace Browser
 {
     public partial class Main : Form
     {
-        private BrowserWindow _browserWindow;
         private ChromiumWebBrowser _chromiumWebBrowser;
-        private IntPtr _chromiumWebBrowserHandle;
+        private RenderHandler _renderHandler;
+        private bool _blockUserInput;
+        private bool _userOnMap;
         private CookieManager _cookies;
         private NamedPipeServer<string> _server;
 
+        public void Log(string text)
+        {
+            if (richTextBox1.InvokeRequired)
+            {
+                richTextBox1.BeginInvoke(new Action(delegate {
+                    Log(text);
+                }));
+                return;
+            }
+
+            var nDateTime = DateTime.Now.ToString("hh:mm:ss tt") + " - ";
+
+
+            richTextBox1.SelectionStart = richTextBox1.Text.Length;
+            richTextBox1.SelectionColor = Color.Black;
+
+            if (richTextBox1.Lines.Length == 0)
+            {
+                richTextBox1.AppendText(nDateTime + text);
+                richTextBox1.ScrollToCaret();
+                richTextBox1.AppendText(System.Environment.NewLine);
+            }
+            else
+            {
+                richTextBox1.AppendText(nDateTime + text + System.Environment.NewLine);
+                richTextBox1.ScrollToCaret();
+            }
+        }
         public Main()
         {
             InitializeComponent();
+            KeyPreview = true;
         }
 
-        private void FrmBrowser_Load(object sender, EventArgs e)
+        private void main_Load(object sender, EventArgs e)
         {
             _chromiumWebBrowser?.Dispose();
 
@@ -33,128 +67,160 @@ namespace Browser
 
             var browserSettings = new BrowserSettings
             {
-                WindowlessFrameRate = 60,
+                WindowlessFrameRate = 6,
                 Plugins = CefState.Enabled,
-                WebGl = CefState.Enabled
+                WebGl = CefState.Enabled,
             };
 
-            _chromiumWebBrowser = new ChromiumWebBrowser("https://darkorbit.com")
+            _chromiumWebBrowser = new ChromiumWebBrowser("https://darkorbit.com", browserSettings, new RequestContext(new RequestContextHandler(_cookies)))
             {
-                BrowserSettings = browserSettings,
-                RequestContext = new RequestContext(new RequestContextHandler(_cookies)),
+                Size = pbBrowser.Size,
                 RequestHandler = new RequestHandler(),
                 MenuHandler = new ContextMenuHandler()
             };
+            _renderHandler = new RenderHandler(_chromiumWebBrowser);
+            _renderHandler.BrowserPaint += (bitmap) =>
+            {
+                lock (_renderHandler.BitMapLocker)
+                {
+                    try
+                    {
+                        pbBrowser.Image?.Dispose();
+
+                        pbBrowser.Image = bitmap;
+                    }
+                    catch (Exception exception)
+                    {
+                        Log("exc in draw " + exception.ToString());
+                    }
+
+                }
+            };
+
+            _chromiumWebBrowser.RenderHandler = _renderHandler;
 
             _chromiumWebBrowser.AddressChanged += ChromiumWebBrowserOnAddressChanged;
-            _chromiumWebBrowser.IsBrowserInitializedChanged += ChromiumWebBrowserOnIsBrowserInitializedChanged;
-            _chromiumWebBrowser.HandleCreated += ChromiumWebBrowserOnHandleCreated;
-            _chromiumWebBrowser.Dock = DockStyle.Fill;
-            Controls.Add(_chromiumWebBrowser);
 
-            Task.Run((Action) CreatePipeConnection);
+
+            Task.Run(CreatePipeConnection);
         }
 
         private void CreatePipeConnection()
         {
             _server = new NamedPipeServer<string>(Process.GetCurrentProcess().Id.ToString());
             _server.ClientMessage += ServerOnClientMessage;
+            _server.ClientConnected += connection => { Log($"client connected {connection.Name}"); };
+            _server.ClientDisconnected += connection => { Log($"client disconnected {connection.Name}"); };
+            _server.Error += exception => { Log(exception.ToString()); };
             _server.Start();
         }
 
         private void ServerOnClientMessage(NamedPipeConnection<string, string> connection, string message)
         {
+            Log(message);
             var packet = new PacketHandler(message);
 
-            switch (packet.Header)
+            if (packet.Header == PacketHandler.PacketHeader.Login)
             {
-                case PacketHandler.PacketHeader.Login:
-                    var server = packet.Next;
-                    var sid = packet.Next;
+                var server = packet.Next;
+                var sid = packet.Next;
 
-                    var cookie = new Cookie
-                    {
-                        Name = "dosid",
-                        Value = sid,
-                        Domain = $"{server}.darkorbit.com",
-                        Secure = true,
-                        Creation = DateTime.Now
-                    };
+                var cookie = new Cookie
+                {
+                    Name = "dosid",
+                    Value = sid,
+                    Domain = $"{server}.darkorbit.com",
+                    Secure = true,
+                    Creation = DateTime.Now
+                };
 
-                    _cookies.DeleteCookies($"https://www.{server}.darkorbit.com/", "dosid", null);
-                    _cookies.SetCookie($"https://www.{server}.darkorbit.com", cookie, null);
-                    _chromiumWebBrowser.Load(
-                        $"https://www.{server}.darkorbit.com/indexInternal.es?action=internalStart");
-                    break;
-                case PacketHandler.PacketHeader.Reload:
-                    _chromiumWebBrowser.Reload(true);
-                    break;
-                case PacketHandler.PacketHeader.Mouse:
-                    var x = packet.NextInt;
-                    var y = packet.NextInt;
-
-                    switch (packet.NextMouseEvent)
-                    {
-                        case PacketHandler.MouseEvent.Move:
-                            _chromiumWebBrowser.GetBrowserHost().SendMouseMoveEvent(x, y, false, CefEventFlags.None);
-                            break;
-                        case PacketHandler.MouseEvent.Down:
-                            DoMouseDown(x, y);
-                            break;
-                        case PacketHandler.MouseEvent.Up:
-                            DoMouseUp(x, y);
-                            break;
-                        case PacketHandler.MouseEvent.Click:
-                            DoMouseDown(x, y);
-                            DoMouseUp(x, y);
-                            break;
-                    }
-
-                    ;
-                    break;
-                case PacketHandler.PacketHeader.Keyboard:
-                    var key = packet.NextInt;
-
-                    switch (packet.NextKeyboardEvent)
-                    {
-                        case PacketHandler.KeyboardEvent.Down:
-                            DoKeyDown(key);
-                            break;
-                        case PacketHandler.KeyboardEvent.Up:
-                            DoKeyUp(key);
-                            break;
-                        case PacketHandler.KeyboardEvent.Click:
-                            DoKeyDown(key);
-                            DoKeyUp(key);
-                            break;
-                    }
-
-                    ;
-
-                    break;
-                case PacketHandler.PacketHeader.Show:
-                    Show();
-                    break;
-                case PacketHandler.PacketHeader.Hide:
-                    Hide();
-                    break;
-                case PacketHandler.PacketHeader.BlockInput:
-                    _browserWindow.BlockUserInput = packet.NextBool;
-                    break;
+                _cookies.DeleteCookies($"https://www.{server}.darkorbit.com/", "dosid", null);
+                _cookies.SetCookie($"https://www.{server}.darkorbit.com", cookie, null);
+                _chromiumWebBrowser.Load(
+                    $"https://www.{server}.darkorbit.com/indexInternal.es?action=internalStart");
             }
+            else if (packet.Header == PacketHandler.PacketHeader.Reload)
+            {
+                _chromiumWebBrowser.Reload(true);
+            }
+            else if (packet.Header == PacketHandler.PacketHeader.Mouse)
+            {
+                var x = packet.NextInt;
+                var y = packet.NextInt;
 
-            ;
-        }
+                if (packet.NextMouseEvent == PacketHandler.MouseEvent.Move)
+                {
+                    Log($"Mouse move {x} {y}");
+                    _chromiumWebBrowser.GetBrowserHost().SendMouseMoveEvent(x, y, false, CefEventFlags.None);
+                }
+                else if (packet.NextMouseEvent == PacketHandler.MouseEvent.Down)
+                {
+                    Log($"Mouse down {x} {y}");
+                    DoMouseDown(x, y);
+                }
+                else if (packet.NextMouseEvent == PacketHandler.MouseEvent.Up)
+                {
+                    Log($"Mouse up {x} {y}");
+                    DoMouseUp(x, y);
+                }
+                else if (packet.NextMouseEvent == PacketHandler.MouseEvent.Click)
+                {
+                    Log($"Mouse click {x} {y}");
+                    DoMouseDown(x, y);
+                    DoMouseUp(x, y);
+                }
 
-        private void ChromiumWebBrowserOnIsBrowserInitializedChanged(object sender,
-            IsBrowserInitializedChangedEventArgs e)
-        {
-            if (e.IsBrowserInitialized) Task.Run(new Action(LoopForHandle));
-        }
-
-        private void ChromiumWebBrowserOnHandleCreated(object sender, EventArgs e)
-        {
-            _chromiumWebBrowserHandle = _chromiumWebBrowser.Handle;
+                ;
+            }
+            else if (packet.Header == PacketHandler.PacketHeader.Keyboard)
+            {
+                var e = packet.NextKeyboardEvent;
+                var key = packet.NextInt;
+                if (e == PacketHandler.KeyboardEvent.Down)
+                {
+                    Log($"Key down {key}");
+                    DoKeyDown(key);
+                }
+                else if (e == PacketHandler.KeyboardEvent.Up)
+                {
+                    Log($"Key up {key}");
+                    DoKeyUp(key);
+                }
+                else if (e == PacketHandler.KeyboardEvent.Click)
+                {
+                    Log($"Key click {key}");
+                    if (_userOnMap)
+                    {
+                        DoKeyDown(key);
+                        DoKeyUp(key);
+                        DoKeyPress(key);
+                    }
+                    else
+                    {
+                        DoKeyPress(key);
+                    }
+                }
+            }
+            else if (packet.Header == PacketHandler.PacketHeader.Show)
+            {
+                Log($"show");
+                Invoke(new Action(Show));
+            }
+            else if (packet.Header == PacketHandler.PacketHeader.Hide)
+            {
+                Log($"hide");
+                Invoke(new Action(Hide));
+            }
+            else if (packet.Header == PacketHandler.PacketHeader.BlockInput)
+            {
+                Log($"block input");
+                _blockUserInput = packet.NextBool;
+            }
+            else if (packet.Header == PacketHandler.PacketHeader.Render)
+            {
+                Log($"render");
+                _renderHandler.Render = !_renderHandler.Render;
+            }
         }
 
         private void ChromiumWebBrowserOnAddressChanged(object sender, AddressChangedEventArgs e)
@@ -167,53 +233,170 @@ namespace Browser
                     _chromiumWebBrowser.Load("https://" + match.Groups[1].Value +
                                              ".darkorbit.com/indexInternal.es?action=internalMapRevolution");
             }
+
+            if (e.Address.Contains("/indexInternal.es?action=internalMapRevolution"))
+            {
+                _userOnMap = true;
+            }
+            else
+            {
+                _userOnMap = false;
+            }
         }
 
-        private async void LoopForHandle()
+        private void DoMouseMove(int x, int y)
         {
-            try
+            if (!_chromiumWebBrowser.IsBrowserInitialized)
             {
-                IntPtr intPtr;
-                while (!RenderWidgetHostHandleSearcher.Search(_chromiumWebBrowserHandle, out intPtr))
-                    await Task.Delay(10);
-                _browserWindow = new BrowserWindow(_chromiumWebBrowser, intPtr);
+                return;
             }
-            catch (Exception e)
-            {
-                Logger.GetLogger().Error("[LoopForHandle] ", e);
-            }
+            _chromiumWebBrowser.GetBrowserHost().SendMouseMoveEvent(x, y, false, CefEventFlags.None);
         }
-
         private void DoMouseDown(int x, int y)
         {
+            if (!_chromiumWebBrowser.IsBrowserInitialized)
+            {
+                return;
+            }
             _chromiumWebBrowser.GetBrowserHost()
                 .SendMouseClickEvent(x, y, MouseButtonType.Left, false, 1, CefEventFlags.None);
         }
 
         private void DoMouseUp(int x, int y)
         {
+            if (!_chromiumWebBrowser.IsBrowserInitialized)
+            {
+                return;
+            }
             _chromiumWebBrowser.GetBrowserHost()
                 .SendMouseClickEvent(x, y, MouseButtonType.Left, true, 1, CefEventFlags.None);
         }
 
         private void DoKeyDown(int chr)
         {
-            var keyEvent = new KeyEvent {WindowsKeyCode = chr, IsSystemKey = false, Type = KeyEventType.KeyDown};
+            if (!_chromiumWebBrowser.IsBrowserInitialized)
+            {
+                return;
+            }
+            var keyEvent = new KeyEvent
+            {
+                FocusOnEditableField = !_userOnMap,
+                WindowsKeyCode = chr,
+                Modifiers = CefEventFlags.None,
+                Type = KeyEventType.KeyDown,
+                IsSystemKey = false,
+            };
 
+            if (chr >= 0x00 && chr <= 0x2F)
+            {
+                keyEvent.Type = KeyEventType.KeyDown;
+            }
 
-            if (chr >= 96 && chr <= 105) keyEvent.Modifiers = CefEventFlags.NumLockOn | CefEventFlags.IsKeyPad;
 
             _chromiumWebBrowser.GetBrowserHost().SendKeyEvent(keyEvent);
         }
 
         private void DoKeyUp(int chr)
         {
-            var keyEvent = new KeyEvent {WindowsKeyCode = chr, IsSystemKey = false, Type = KeyEventType.KeyUp};
+            if (!_chromiumWebBrowser.IsBrowserInitialized)
+            {
+                return;
+            }
+            var keyEvent = new KeyEvent
+            {
+                FocusOnEditableField = !_userOnMap,
+                WindowsKeyCode = chr,
+                Modifiers = CefEventFlags.None,
+                Type = KeyEventType.KeyUp,
+                IsSystemKey = false,
+            };
 
+            if (chr >= 0x00 && chr <= 0x2F)
+            {
+                keyEvent.Type = KeyEventType.KeyDown;
+            }
 
-            if (chr >= 96 && chr <= 105) keyEvent.Modifiers = CefEventFlags.NumLockOn | CefEventFlags.IsKeyPad;
 
             _chromiumWebBrowser.GetBrowserHost().SendKeyEvent(keyEvent);
+        }
+
+        private void DoKeyPress(int chr)
+        {
+            if (!_chromiumWebBrowser.IsBrowserInitialized)
+            {
+                return;
+            }
+            var keyEvent = new KeyEvent
+            {
+                FocusOnEditableField = !_userOnMap,
+                WindowsKeyCode = chr,
+                Modifiers = CefEventFlags.None,
+                Type = KeyEventType.Char,
+                IsSystemKey = false,
+            };
+
+            if (chr >= 0x00 && chr <= 0xC)
+            {
+                keyEvent.Type = KeyEventType.KeyDown;
+            }
+
+
+            _chromiumWebBrowser.GetBrowserHost().SendKeyEvent(keyEvent);
+        }
+
+        private void pbBrowser_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (!_blockUserInput && e.Button == MouseButtons.Left)
+            {
+                DoMouseDown(e.X, e.Y);
+            }
+        }
+
+        private void pbBrowser_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!_blockUserInput)
+            {
+                DoMouseMove(e.X, e.Y);
+            }
+        }
+
+        private void pbBrowser_MouseUp(object sender, MouseEventArgs e)
+        {
+            if (!_blockUserInput && e.Button == MouseButtons.Left)
+            {
+                DoMouseUp(e.X, e.Y);
+            }
+        }
+
+        private void main_Resize(object sender, EventArgs e)
+        {
+            if (_chromiumWebBrowser != null)
+            {
+                _chromiumWebBrowser.Size = pbBrowser.Size;
+            }
+        }
+
+        private async void main_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (pbBrowser.Bounds.Contains(PointToClient(Cursor.Position)))
+            {
+                if (!_blockUserInput)
+                {
+                    if (_userOnMap)
+                    {
+                        DoKeyDown(e.KeyChar);
+                        await Task.Delay(50);
+                        DoKeyUp(e.KeyChar);
+                        await Task.Delay(50);
+                        DoKeyPress(e.KeyChar);
+                    }
+                    else
+                    {
+                        DoKeyPress(e.KeyChar);
+                    }
+                }
+            }
+            e.Handled = true;
         }
     }
 }

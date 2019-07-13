@@ -27,7 +27,8 @@ namespace Browser
             Keyboard = 3,
             Show = 4,
             Hide = 5,
-            BlockInput = 6
+            BlockInput = 6,
+            Render = 7
         }
 
         private readonly string[] _data;
