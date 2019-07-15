@@ -162,10 +162,11 @@ namespace Browser
             }
             else if (packet.Header == PacketHandler.PacketHeader.Mouse)
             {
+                var mouseEvent = packet.NextMouseEvent;
                 var x = packet.NextInt;
                 var y = packet.NextInt;
 
-                if (packet.NextMouseEvent == PacketHandler.MouseEvent.Move)
+                if (mouseEvent == PacketHandler.MouseEvent.Move)
                 {
                     Log($"Mouse move {x} {y}");
                     DoMouseMove(x, y);
@@ -173,7 +174,7 @@ namespace Browser
                     _server.WriteMessage("1");
                     Log($"Mouse move {x} {y} sent");
                 }
-                else if (packet.NextMouseEvent == PacketHandler.MouseEvent.Down)
+                else if (mouseEvent == PacketHandler.MouseEvent.Down)
                 {
                     Log($"Mouse down {x} {y}");
                     DoMouseDown(x, y);
@@ -181,7 +182,7 @@ namespace Browser
                     _server.WriteMessage("1");
                     Log($"Mouse down {x} {y} sent");
                 }
-                else if (packet.NextMouseEvent == PacketHandler.MouseEvent.Up)
+                else if (mouseEvent == PacketHandler.MouseEvent.Up)
                 {
                     Log($"Mouse up {x} {y}");
                     DoMouseUp(x, y);
@@ -189,7 +190,7 @@ namespace Browser
                     _server.WriteMessage("1");
                     Log($"Mouse up {x} {y} sent");
                 }
-                else if (packet.NextMouseEvent == PacketHandler.MouseEvent.Click)
+                else if (mouseEvent == PacketHandler.MouseEvent.Click)
                 {
                     Log($"Mouse click {x} {y}");
                     DoMouseDown(x, y);
