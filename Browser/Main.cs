@@ -11,7 +11,6 @@ using System.Windows.Forms;
 using Browser.CefHandler;
 using CefSharp;
 using CefSharp.OffScreen;
-using NamedPipeWrapper;
 
 namespace Browser
 {
@@ -22,7 +21,7 @@ namespace Browser
         private bool _blockUserInput;
         private bool _userOnMap;
         private CookieManager _cookies;
-        private NamedPipeServer<string> _server;
+        private NamedPipeServer _server;
 
         public void Log(string text)
         {
@@ -34,7 +33,7 @@ namespace Browser
                 return;
             }
 
-            var nDateTime = DateTime.Now.ToString("hh:mm:ss tt") + " - ";
+            var nDateTime = DateTime.Now.ToString("hh:mm:ss.fff tt") + " - ";
 
 
             richTextBox1.SelectionStart = richTextBox1.Text.Length;
@@ -66,6 +65,7 @@ namespace Browser
             InitializeComponent();
             KeyPreview = true;
             SetDoubleBuffering(pbBrowser, true);
+            SetDoubleBuffering(this, true);
         }
 
         private void main_Load(object sender, EventArgs e)
@@ -77,7 +77,7 @@ namespace Browser
 
             var browserSettings = new BrowserSettings
             {
-                WindowlessFrameRate = (int)numericUpDown1.Value,
+                WindowlessFrameRate = (int)nudFps.Value,
                 Plugins = CefState.Enabled,
                 WebGl = CefState.Enabled,
             };
@@ -124,16 +124,16 @@ namespace Browser
 
         private void CreatePipeConnection()
         {
-            _server = new NamedPipeServer<string>(Process.GetCurrentProcess().Id.ToString());
+            _server = new NamedPipeServer(Process.GetCurrentProcess().Id.ToString());
             _server.ClientMessage += ServerOnClientMessage;
-            _server.ClientConnected += connection => { Log($"client connected {connection.Name}"); };
-            _server.ClientDisconnected += connection => { Log($"client disconnected {connection.Name}"); };
-            _server.Error += exception => { Log(exception.ToString()); };
+            _server.ClientConnected += delegate(object sender, EventArgs args) { Log($"client connected"); };
+            _server.PipeClosed += delegate(object sender, EventArgs args) { _server.Close();  };
             _server.Start();
         }
 
-        private void ServerOnClientMessage(NamedPipeConnection<string, string> connection, string message)
+        private void ServerOnClientMessage(object sender, MessageReceivedEventArgs e)
         {
+            var message = Encoding.UTF8.GetString(e.Data, 0, e.BytesRead);
             Log(message);
             var packet = new PacketHandler(message);
 
@@ -168,41 +168,53 @@ namespace Browser
                 if (packet.NextMouseEvent == PacketHandler.MouseEvent.Move)
                 {
                     Log($"Mouse move {x} {y}");
-                    _chromiumWebBrowser.GetBrowserHost().SendMouseMoveEvent(x, y, false, CefEventFlags.None);
+                    DoMouseMove(x, y);
+                    Log($"Mouse move {x} {y} done");
+                    _server.WriteMessage("1");
+                    Log($"Mouse move {x} {y} sent");
                 }
                 else if (packet.NextMouseEvent == PacketHandler.MouseEvent.Down)
                 {
                     Log($"Mouse down {x} {y}");
                     DoMouseDown(x, y);
+                    Log($"Mouse down {x} {y} done");
+                    _server.WriteMessage("1");
+                    Log($"Mouse down {x} {y} sent");
                 }
                 else if (packet.NextMouseEvent == PacketHandler.MouseEvent.Up)
                 {
                     Log($"Mouse up {x} {y}");
                     DoMouseUp(x, y);
+                    Log($"Mouse up {x} {y} done");
+                    _server.WriteMessage("1");
+                    Log($"Mouse up {x} {y} sent");
                 }
                 else if (packet.NextMouseEvent == PacketHandler.MouseEvent.Click)
                 {
                     Log($"Mouse click {x} {y}");
                     DoMouseDown(x, y);
                     DoMouseUp(x, y);
+                    Log($"Mouse click {x} {y} done");
+                    _server.WriteMessage("1");
+                    Log($"Mouse click {x} {y} sent");
                 }
 
             }
             else if (packet.Header == PacketHandler.PacketHeader.Keyboard)
             {
-                var e = packet.NextKeyboardEvent;
+                var keyEvent = packet.NextKeyboardEvent;
                 var key = packet.NextInt;
-                if (e == PacketHandler.KeyboardEvent.Down)
+                if (keyEvent == PacketHandler.KeyboardEvent.Down)
                 {
                     Log($"Key down {key}");
                     DoKeyDown(key);
                 }
-                else if (e == PacketHandler.KeyboardEvent.Up)
+                else if (keyEvent == PacketHandler.KeyboardEvent.Up)
                 {
                     Log($"Key up {key}");
                     DoKeyUp(key);
                 }
-                else if (e == PacketHandler.KeyboardEvent.Click)
+                else if (keyEvent == PacketHandler.KeyboardEvent.Click)
                 {
                     Log($"Key click {key}");
                     if (_userOnMap)
@@ -412,9 +424,9 @@ namespace Browser
             e.Handled = true;
         }
 
-        private void NumericUpDown1_ValueChanged(object sender, EventArgs e)
+        private void nudFps_ValueChanged(object sender, EventArgs e)
         {
-            _chromiumWebBrowser.GetBrowserHost().WindowlessFrameRate = (int) numericUpDown1.Value;
+            _chromiumWebBrowser.GetBrowserHost().WindowlessFrameRate = (int)nudFps.Value;
         }
     }
 }

@@ -21,10 +21,10 @@ namespace Browser
             this.richTextBox1 = new System.Windows.Forms.RichTextBox();
             this.folderBrowserDialog1 = new System.Windows.Forms.FolderBrowserDialog();
             this.pbBrowser = new System.Windows.Forms.PictureBox();
-            this.numericUpDown1 = new System.Windows.Forms.NumericUpDown();
-            this.label1 = new System.Windows.Forms.Label();
+            this.nudFps = new System.Windows.Forms.NumericUpDown();
+            this.lblFps = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.pbBrowser)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDown1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudFps)).BeginInit();
             this.SuspendLayout();
             // 
             // richTextBox1
@@ -50,45 +50,45 @@ namespace Browser
             this.pbBrowser.MouseMove += new System.Windows.Forms.MouseEventHandler(this.pbBrowser_MouseMove);
             this.pbBrowser.MouseUp += new System.Windows.Forms.MouseEventHandler(this.pbBrowser_MouseUp);
             // 
-            // numericUpDown1
+            // nudFps
             // 
-            this.numericUpDown1.Location = new System.Drawing.Point(334, 12);
-            this.numericUpDown1.Maximum = new decimal(new int[] {
+            this.nudFps.Location = new System.Drawing.Point(45, 12);
+            this.nudFps.Maximum = new decimal(new int[] {
             60,
             0,
             0,
             0});
-            this.numericUpDown1.Minimum = new decimal(new int[] {
+            this.nudFps.Minimum = new decimal(new int[] {
             1,
             0,
             0,
             0});
-            this.numericUpDown1.Name = "numericUpDown1";
-            this.numericUpDown1.Size = new System.Drawing.Size(120, 22);
-            this.numericUpDown1.TabIndex = 4;
-            this.numericUpDown1.Value = new decimal(new int[] {
+            this.nudFps.Name = "nudFps";
+            this.nudFps.Size = new System.Drawing.Size(120, 22);
+            this.nudFps.TabIndex = 4;
+            this.nudFps.Value = new decimal(new int[] {
             30,
             0,
             0,
             0});
-            this.numericUpDown1.ValueChanged += new System.EventHandler(this.NumericUpDown1_ValueChanged);
+            this.nudFps.ValueChanged += new System.EventHandler(this.nudFps_ValueChanged);
             // 
-            // label1
+            // lblFps
             // 
-            this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(258, 13);
-            this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(27, 17);
-            this.label1.TabIndex = 5;
-            this.label1.Text = "fps";
+            this.lblFps.AutoSize = true;
+            this.lblFps.Location = new System.Drawing.Point(12, 14);
+            this.lblFps.Name = "lblFps";
+            this.lblFps.Size = new System.Drawing.Size(27, 17);
+            this.lblFps.TabIndex = 5;
+            this.lblFps.Text = "fps";
             // 
             // Main
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1789, 891);
-            this.Controls.Add(this.label1);
-            this.Controls.Add(this.numericUpDown1);
+            this.Controls.Add(this.lblFps);
+            this.Controls.Add(this.nudFps);
             this.Controls.Add(this.pbBrowser);
             this.Controls.Add(this.richTextBox1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
@@ -102,7 +102,7 @@ namespace Browser
             this.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.main_KeyPress);
             this.Resize += new System.EventHandler(this.main_Resize);
             ((System.ComponentModel.ISupportInitialize)(this.pbBrowser)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericUpDown1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudFps)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -110,8 +110,8 @@ namespace Browser
         private RichTextBox richTextBox1;
         private FolderBrowserDialog folderBrowserDialog1;
         private PictureBox pbBrowser;
-        private NumericUpDown numericUpDown1;
-        private Label label1;
+        private NumericUpDown nudFps;
+        private Label lblFps;
     }
 }
 
