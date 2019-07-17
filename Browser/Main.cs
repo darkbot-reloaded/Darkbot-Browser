@@ -21,6 +21,8 @@ namespace Browser
         private bool _blockUserInput;
         private bool _userOnMap;
         private CookieManager _cookies;
+
+        private Thread _pipeThread;
         private NamedPipeServer _server;
 
         public void Log(string text)
@@ -119,7 +121,8 @@ namespace Browser
             _chromiumWebBrowser.AddressChanged += ChromiumWebBrowserOnAddressChanged;
 
 
-            Task.Run(CreatePipeConnection);
+            _pipeThread = new Thread(CreatePipeConnection);
+            _pipeThread.Start();
         }
 
         private void CreatePipeConnection()
