@@ -1,24 +1,24 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
+using Browser.Core;
 using CefSharp;
-using CefSharp.OffScreen;
+using CefSharp.WinForms;
 
 namespace Browser
 {
     internal static class Program
     {
-        public static readonly string PATH_RESOURCES = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources");
-        private static readonly string PATH_CEF = Path.Combine(PATH_RESOURCES, "Cef");
-        private static readonly string PATH_LIB = Path.Combine(PATH_RESOURCES, "Lib");
+     
 
         [STAThread]
-        private static void Main()
-        {
-            HookAssemblyResolve(PATH_CEF, PATH_LIB);
+        private static void Main() {
+            HookAssemblyResolve(BrowserInitializer.PATH_CEF, BrowserInitializer.PATH_LIB);
 
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             Application.ThreadException += ApplicationOnThreadException;
@@ -26,9 +26,10 @@ namespace Browser
 
             AppDomain.CurrentDomain.ProcessExit += CurrentDomainOnProcessExit;
 
-            var libraryLoader = new CefLibraryHandle(Path.Combine(PATH_CEF, "libcef.dll"));
-            Logger.GetLogger().Info($"Loaded libcef.dll -> {!libraryLoader.IsInvalid}");
-            libraryLoader.Dispose();
+            var stage1 = BrowserInitializer.InitStage1();
+          
+            Logger.GetLogger().Info($"Loaded libcef.dll -> {stage1}");
+            
 
             LaunchBrowser();
         }
@@ -52,7 +53,7 @@ namespace Browser
 
                 foreach (var dir in folders)
                 {
-                    var assembly = new[] {"*.dll", "*.exe"}.SelectMany(g => Directory.EnumerateFiles(dir, g))
+                    var assembly = new[] { "*.dll", "*.exe" }.SelectMany(g => Directory.EnumerateFiles(dir, g))
                         .FirstOrDefault(f =>
                         {
                             try
@@ -88,7 +89,7 @@ namespace Browser
 
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
-            Logger.GetLogger().Error("[ApplicationOnThreadException] ", (Exception) e.ExceptionObject);
+            Logger.GetLogger().Error("[ApplicationOnThreadException] ", (Exception)e.ExceptionObject);
         }
 
         private static void LaunchBrowser()
@@ -97,11 +98,11 @@ namespace Browser
 
             var cefSettings = new CefSettings
             {
-                CachePath = Path.Combine(PATH_CEF, "cache"),
-                LogFile = Path.Combine(PATH_CEF, "debug.log"),
-                BrowserSubprocessPath = Path.Combine(PATH_CEF, "CefSharp.BrowserSubprocess.exe"),
-                LocalesDirPath = Path.Combine(PATH_CEF, "locales"),
-                ResourcesDirPath = Path.Combine(PATH_CEF),
+                CachePath = Path.Combine(BrowserInitializer.PATH_CEF, "cache"),
+                LogFile = Path.Combine(BrowserInitializer.PATH_CEF, "debug.log"),
+                BrowserSubprocessPath = Path.Combine(BrowserInitializer.PATH_CEF, "CefSharp.BrowserSubprocess.exe"),
+                LocalesDirPath = Path.Combine(BrowserInitializer.PATH_CEF, "locales"),
+                ResourcesDirPath = Path.Combine(BrowserInitializer.PATH_CEF),
                 MultiThreadedMessageLoop = true,
                 UserAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36",
                 CommandLineArgsDisabled = false,
@@ -109,19 +110,26 @@ namespace Browser
             };
             cefSettings.CefCommandLineArgs.Remove("enable-system-flash");
             cefSettings.CefCommandLineArgs.Add("enable-system-flash", "0");
-            cefSettings.CefCommandLineArgs.Add("ppapi-flash-path", Path.Combine(PATH_LIB, "pepflashplayer64_32_0_0_207.dll"));
+            cefSettings.CefCommandLineArgs.Add("ppapi-flash-path", Path.Combine(BrowserInitializer.PATH_LIB, "pepflashplayer64_32_0_0_207.dll"));
             cefSettings.CefCommandLineArgs.Add("ppapi-flash-version", "32.0.0.207");
             cefSettings.CefCommandLineArgs.Add("force-device-scale-factor", "1");
             cefSettings.CefCommandLineArgs.Add("autoplay-policy", "no-user-gesture-required");
             cefSettings.CefCommandLineArgs.Add("disable-gpu-vsync", "1");
             cefSettings.CefCommandLineArgs.Add("disable-direct-write", "1");
             cefSettings.CefCommandLineArgs.Add("disable-gpu-shader-disk-cache", "1");
+
+            cefSettings.CefCommandLineArgs.Add("--js-flags", "--max_old_space_size=1024");
+
             cefSettings.SetOffScreenRenderingBestPerformanceArgs();
+
+            CefSharpSettings.SubprocessExitIfParentProcessClosed = true;
+
             Cef.Initialize(cefSettings, false, browserProcessHandler: null);
+
             Logger.GetLogger().Info("Initialized Cef... Launching browser...");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Main());
+            Application.Run(new FrmMain());
         }
     }
 }
