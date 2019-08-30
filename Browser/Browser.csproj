@@ -94,7 +94,7 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="RenderWidgetHostHandleSearcher.cs" />
+    <Compile Include="WindowClassSearcher.cs" />
     <Content Include="Resources\Libs\Browser.Core.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

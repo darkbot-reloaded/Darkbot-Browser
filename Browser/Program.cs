@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -25,11 +26,9 @@ namespace Browser
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
 
             AppDomain.CurrentDomain.ProcessExit += CurrentDomainOnProcessExit;
-
             var stage1 = BrowserInitializer.InitStage1();
           
             Logger.GetLogger().Info($"Loaded libcef.dll -> {stage1}");
-            
 
             LaunchBrowser();
         }
@@ -118,7 +117,7 @@ namespace Browser
             cefSettings.CefCommandLineArgs.Add("disable-direct-write", "1");
             cefSettings.CefCommandLineArgs.Add("disable-gpu-shader-disk-cache", "1");
 
-            cefSettings.CefCommandLineArgs.Add("--js-flags", "--max_old_space_size=1024");
+            //cefSettings.CefCommandLineArgs.Add("--js-flags", "--max_old_space_size=1024");
 
             cefSettings.SetOffScreenRenderingBestPerformanceArgs();
 

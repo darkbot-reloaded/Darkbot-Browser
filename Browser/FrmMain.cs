@@ -2,6 +2,8 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -17,19 +19,19 @@ namespace Browser
     public partial class FrmMain : Form
     {
         private BrowserWindow _browserWindow;
+        private BrowserWindow _browserWidgetWindow;
         private ChromiumWebBrowser _chromiumWebBrowser;
         private IntPtr _chromiumWebBrowserHandle;
         private CookieManager _cookies;
 
         private Thread _pipeThread;
-        private NamedPipeServer _server;
+        private TcpServer _server;
 
         private PacketHandler _packetHandler;
 
         public FrmMain()
         {
             InitializeComponent();
-            SetDoubleBuffering(pnlBrowserContainer, true);
             SetDoubleBuffering(this, true);
         }
 
@@ -47,44 +49,34 @@ namespace Browser
                 WebGl = CefState.Enabled
             };
 
+
             _chromiumWebBrowser = new ChromiumWebBrowser("https://darkorbit.com")
             {
                 BrowserSettings = browserSettings,
                 RequestContext = new RequestContext(new RequestContextHandler(_cookies)),
                 RequestHandler = new RequestHandler(),
-                MenuHandler = new ContextMenuHandler()
+                MenuHandler = new ContextMenuHandler(),
+                LifeSpanHandler = new LifeSpanHandler()
+                
             };
 
             _chromiumWebBrowser.AddressChanged += ChromiumWebBrowserOnAddressChanged;
             _chromiumWebBrowser.IsBrowserInitializedChanged += ChromiumWebBrowserOnIsBrowserInitializedChanged;
             _chromiumWebBrowser.HandleCreated += ChromiumWebBrowserOnHandleCreated;
-            pnlBrowserContainer.Controls.Add(_chromiumWebBrowser);
+            Controls.Add(_chromiumWebBrowser);
 
             SetDoubleBuffering(_chromiumWebBrowser, true);
 
-            _pipeThread = new Thread(CreatePipeConnection);
+            _pipeThread = new Thread(CreateTcpServer);
             _pipeThread.Start();
         }
 
         public void Log(string text)
         {
-            if (rtbLog.InvokeRequired)
-            {
-                rtbLog.BeginInvoke(new Action(delegate
-                {
-                    Log(text);
-                }));
-                return;
-            }
-
             var dt = DateTime.Now.ToString("hh:mm:ss.fff tt") + " - ";
 
-
-            rtbLog.SelectionStart = rtbLog.Text.Length;
-            rtbLog.SelectionColor = Color.Black;
-
-            rtbLog.AppendText(dt + text + Environment.NewLine);
-            rtbLog.ScrollToCaret();
+            var logText = dt + " " + text + Environment.NewLine;
+            Logger.GetLogger().Debug(text);
         }
 
         private void SetDoubleBuffering(Control control, bool value)
@@ -96,21 +88,32 @@ namespace Browser
             }
         }
 
-        private void CreatePipeConnection()
+        private void CreateTcpServer()
         {
-            _server = new NamedPipeServer(Process.GetCurrentProcess().Id.ToString());
+            var arguments = Environment.GetCommandLineArgs();
+            Log("GetCommandLineArgs: " + string.Join(", ", arguments));
 
-            _packetHandler = new PacketHandler(DoMouseMove, DoMouseDown, DoMouseUp, DoKeyClick, Show, Hide,
-                (block) => { _browserWindow.BlockUserInput = block; }, Log, SetCookie, _chromiumWebBrowser.Load, _chromiumWebBrowser.Reload, _server.WriteMessage);
+            var port = 8080;
 
-            _server.ClientMessage += _packetHandler.ServerOnClientMessage;
-            _server.ClientConnected += delegate { Log($"client connected"); };
-            _server.PipeClosed += delegate
+            if (arguments.Length == 1)
             {
-                Log("client disconnected");
-                _server.Close();
-            };
+                if(int.TryParse(arguments[0], out var tryPort))
+                {
+                    port = tryPort;
+                }
+                
+            }
+            Log("Assigned port: " + port);
+            _server = new TcpServer(port, SocketConnected, Log);
             _server.Start();
+        }
+
+        private void SocketConnected(Socket socket)
+        {
+            Log("client connected");
+            _packetHandler = new PacketHandler(socket, DoMouseMove, DoMouseDown, DoMouseUp, DoMouseClick, DoKeyClick, Show, Hide,
+                (block) => { _browserWindow.BlockUserInput = block; }, Log, SetCookie, _chromiumWebBrowser.Load, _chromiumWebBrowser.Reload);
+
         }
 
         #region Chromium browser
@@ -124,9 +127,6 @@ namespace Browser
                     _chromiumWebBrowser.Load("https://" + match.Groups[1].Value +
                                              ".darkorbit.com/indexInternal.es?action=internalMapRevolution");
             }
-
-           
-
         }
         private void SetCookie(Cookie cookie, string server)
         {
@@ -138,21 +138,42 @@ namespace Browser
         #region Flash hwnd 
         private void ChromiumWebBrowserOnIsBrowserInitializedChanged(object sender, IsBrowserInitializedChangedEventArgs e)
         {
-            if (e.IsBrowserInitialized) Task.Run(LoopForHandle);
+            if (e.IsBrowserInitialized)
+            {
+                Task.Run(LoopForRenderHandle);
+                Task.Run(LoopForWidgetHandle);
+            }
         }
 
-        private async void LoopForHandle()
+        private async void LoopForRenderHandle()
         {
             try
             {
+                var searcher = new WindowClassSearcher("Chrome_RenderWidgetHostHWND");
                 IntPtr intPtr;
-                while (!RenderWidgetHostHandleSearcher.Search(_chromiumWebBrowserHandle, out intPtr))
+                while (!searcher.Search(_chromiumWebBrowserHandle, out intPtr))
                     await Task.Delay(10);
                 _browserWindow = new BrowserWindow(_chromiumWebBrowser, intPtr);
             }
             catch (Exception e)
             {
-                Logger.GetLogger().Error("[LoopForHandle] ", e);
+                Logger.GetLogger().Error("[LoopForRenderHandle] ", e);
+            }
+        }
+
+        private async void LoopForWidgetHandle()
+        {
+            try
+            {
+                var searcher = new WindowClassSearcher("Chrome_WidgetWin_0");
+                IntPtr intPtr;
+                while (!searcher.Search(_chromiumWebBrowserHandle, out intPtr))
+                    await Task.Delay(10);
+                _browserWidgetWindow = new BrowserWindow(_chromiumWebBrowser,intPtr);
+            }
+            catch (Exception e)
+            {
+                Logger.GetLogger().Error("[LoopForWidgetHandle] ", e);
             }
         }
         private void ChromiumWebBrowserOnHandleCreated(object sender, EventArgs e)
@@ -168,7 +189,7 @@ namespace Browser
             {
                 return;
             }
-            _chromiumWebBrowser.GetBrowserHost().SendMouseMoveEvent(x, y, false, CefEventFlags.None);
+            _chromiumWebBrowser.GetBrowserHost().SendMouseMoveEvent(new MouseEvent(x,y, CefEventFlags.None), false );
         }
 
         private void DoMouseDown(int x, int y)
@@ -177,8 +198,7 @@ namespace Browser
             {
                 return;
             }
-            _chromiumWebBrowser.GetBrowserHost()
-                .SendMouseClickEvent(x, y, MouseButtonType.Left, false, 1, CefEventFlags.None);
+            _chromiumWebBrowser.GetBrowserHost().SendMouseClickEvent(new MouseEvent(x, y, CefEventFlags.None),MouseButtonType.Left, false, 1);
         }
 
         private void DoMouseUp(int x, int y)
@@ -187,8 +207,23 @@ namespace Browser
             {
                 return;
             }
-            _chromiumWebBrowser.GetBrowserHost()
-                .SendMouseClickEvent(x, y, MouseButtonType.Left, true, 1, CefEventFlags.None);
+            _chromiumWebBrowser.GetBrowserHost().SendMouseClickEvent(new MouseEvent(x, y, CefEventFlags.None), MouseButtonType.Left, true, 1);
+        }
+
+        private async Task DoMouseClick(int x, int y)
+        {
+            if (!_chromiumWebBrowser.IsBrowserInitialized)
+            {
+                return;
+            }
+
+            WindowsMouseApi.MouseDown(_browserWidgetWindow.Handle, x, y);
+
+            await Task.Delay(5);
+
+            WindowsMouseApi.MouseUp(_browserWidgetWindow.Handle, x, y);
+
+            await Task.Delay(5);
         }
 
         private void DoKeyDown(int chr)
@@ -201,8 +236,8 @@ namespace Browser
 
 
             if (chr >= 96 && chr <= 105) keyEvent.Modifiers = CefEventFlags.NumLockOn | CefEventFlags.IsKeyPad;
-
             _chromiumWebBrowser.GetBrowserHost().SendKeyEvent(keyEvent);
+
         }
 
         private void DoKeyUp(int chr)
@@ -226,9 +261,15 @@ namespace Browser
             Log($"keyclick {chr}/{keyCode}");
 
             DoKeyDown(keyCode);
+            Log("DoKeyDown done");
             DoKeyUp(keyCode);
+            Log($"DoKeyUp done");
         }
         #endregion
 
+        private void FrmMain_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            _server.Stop();
+        }
     }
 }

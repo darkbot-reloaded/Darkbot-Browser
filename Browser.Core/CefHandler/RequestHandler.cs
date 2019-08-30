@@ -23,7 +23,7 @@ namespace Browser.Core.CefHandler
             {
                 var dictionary = new Dictionary<string, string>
                 {
-                    {"\"onFail\": onFailFlashembed", "\"onFail\": onFailFlashembed, \"quality\": \"low\""} //Set Quality to low
+                    {"\"onFail\": onFailFlashembed", "\"onFail\": onFailFlashembed, \"quality\": \"low\""} //set Quality to low
                 };
 
                 return new FindReplaceResponseFilter(dictionary);

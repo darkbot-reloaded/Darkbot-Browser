@@ -34,7 +34,7 @@ namespace Browser.Core
 
         private static IAppender GetFileAppender(string logFile)
         {
-            var layout = new PatternLayout("%date{dd.mm.yyyy HH:mm:ss} [%level] - %message%newline");
+            var layout = new PatternLayout("%date{dd.MM.yyyy HH:mm:ss} [%level] - %message%newline");
             layout.ActivateOptions();
 
             var appender = new FileAppender

@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Browser.Core;
 
 namespace Browser
 {
@@ -18,7 +19,8 @@ namespace Browser
             WM_MOUSEACTIVATE = 0x0021,
             WM_MOUSEMOVE = 0x0200,
             WM_MOUSEHWHEEL = 0x020E,
-            WM_MOUSELEAVE = 0x02A3
+            WM_MOUSELEAVE = 0x02A3,
+            WM_ACTIVATE = 0x0006
         }
 
         public BrowserWindow(Control browser, IntPtr handle)
@@ -34,33 +36,35 @@ namespace Browser
             ReleaseHandle();
             ((Control)sender).HandleDestroyed -= BrowserOnHandleDestroyed;
         }
-
-
         protected override void WndProc(ref Message m)
         {
             var allow = OnInput(m);
             if (allow) base.WndProc(ref m);
         }
 
-        private bool OnInput(Message message)
+        private bool OnInput(Message m)
         {
             if (BlockUserInput)
             {
-                var msg = message.Msg;
-                if (msg <= (int)WindowsMessage.WM_NCLBUTTONDOWN)
+                var msg = m.Msg;
+                if (msg > (int)WindowsMessage.WM_NCLBUTTONDOWN)
                 {
-                    if (msg != (int)WindowsMessage.WM_MOUSEACTIVATE && msg != (int)WindowsMessage.WM_NCLBUTTONDOWN) return true;
-                }
-                else if (msg - (int)WindowsMessage.WM_MOUSEMOVE > 10)
-                {
+                    if (msg - (int)WindowsMessage.WM_MOUSEMOVE <= 10) return false;
                     if (msg == (int)WindowsMessage.WM_MOUSEHWHEEL) return false;
                     if (msg != (int)WindowsMessage.WM_MOUSELEAVE)
+                    {
                         return true;
+                    }
                 }
-
+                else if (msg != (int)WindowsMessage.WM_MOUSEACTIVATE)
+                {
+                    if (msg != (int)WindowsMessage.WM_NCLBUTTONDOWN)
+                    {
+                        return true;
+                    }
+                }
                 return false;
             }
-
             return true;
         }
 
