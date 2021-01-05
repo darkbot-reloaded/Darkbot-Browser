@@ -104,7 +104,7 @@ namespace Browser.OffScreen
                 LocalesDirPath = Path.Combine(BrowserInitializer.PATH_CEF, "locales"),
                 ResourcesDirPath = Path.Combine(BrowserInitializer.PATH_CEF),
                 MultiThreadedMessageLoop = true,
-                UserAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36",
+                UserAgent = "BigpointClient/1.4.6",
                 CommandLineArgsDisabled = false,
                 LogSeverity = LogSeverity.Verbose
             };
